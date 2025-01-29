@@ -1,0 +1,1 @@
+# GENAI-Android-App-Mediapipe-Solution
