@@ -1,9 +1,10 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import ReactDOM from "react-dom/client"; // ✅ Use createRoot
 import App from "./App";
-import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
-ReactDOM.render(<App />, document.getElementById("root"));
-
-serviceWorkerRegistration.register();
-
+const root = ReactDOM.createRoot(document.getElementById("root")); // ✅ Use createRoot
+root.render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
