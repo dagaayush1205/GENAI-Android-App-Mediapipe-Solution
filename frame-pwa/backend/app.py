@@ -42,6 +42,7 @@ def generate_frames():
 
             # Draw face landmarks
             if results_face.detections and checkbox_states["faceTracking"]:
+                results_face = face_detection.process(frame_rgb)
                 for detection in results_face.detections:
                     mp_drawing.draw_detection(frame, detection)
 
