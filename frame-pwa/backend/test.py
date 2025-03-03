@@ -29,6 +29,9 @@ def switch_lora(hand_label, base_model):
         return base_model
     model = PeftModel.from_pretrained(base_model, lora_path)
     return model
+
+
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:

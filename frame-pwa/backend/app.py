@@ -2,7 +2,17 @@ from flask import Flask, Response, request, jsonify
 from flask_cors import CORS
 import cv2
 import mediapipe as mp
-
+from peft import PeftModel, LoraConfig
+import os
+from transformers import AutoModel
+from transformers.pipelines import base
+base_model = AutoModel.from_pretrained("facebook/detr-resnet-50")
+current_model = base_model
+mode = "left"
+left_lora_path = "./lora_left_hand"
+right_lora_path = "./lora_right_hand"
+mp_hands = mp.solutions.hands
+mp_draw = mp.solutions.drawing_utils
 app = Flask(__name__)
 CORS(app)
 
@@ -26,6 +36,22 @@ def update_options():
 # def get_options():
 #     return jsonify(checkbox_states)
 
+def switch_lora(hand_label, base_model):
+    if hand_label == "Left":
+        print("Switching to right Hand LoRa")
+        lora_path = os.path.abspath("lora_left_hand")
+        # model = PeftModel.from_pretrained(base_model, left_lora_path)
+    elif hand_label == "Right":
+        print("Switching to left Hand LoRa")
+        lora_path = os.path.abspath("lora_right_hand")
+        # model = PeftModel.from_pretrained(base_model, right_lora_path)
+    else:
+        print("No hand detected")
+        return base_model
+    model = PeftModel.from_pretrained(base_model, lora_path)
+    return model
+
+
 def generate_frames():
     cap = cv2.VideoCapture(0)  # Capture from webcam
     with mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5) as face_detection:
@@ -33,24 +59,16 @@ def generate_frames():
             ret, frame = cap.read()
             if not ret:
                 break
-
+        
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = hands.process(frame_rgb)
 # Updated options:  {'faceTracking': True, 'handTracking': False}
             # Process with MediaPipe
-            results_hand = hands.process(frame_rgb)
-            results_face = face_detection.process(frame_rgb)
-
-            # Draw face landmarks
-            if results_face.detections and checkbox_states["faceTracking"]:
-                results_face = face_detection.process(frame_rgb)
-                for detection in results_face.detections:
-                    mp_drawing.draw_detection(frame, detection)
-
-            # Draw hand landmarks
-            if results_hand.multi_hand_landmarks and checkbox_states["handTracking"]:
-                for hand_landmarks in results_hand.multi_hand_landmarks:
-                    mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
-
+            if results.multi_hand_landmarks:
+                for hand_landmarks, handedness in zip(results.multi_hand_landmarks, results.multi_handedness):
+                    hand_label = handedness.classification[0].label
+                    switch_lora(hand_label, base_model)
+                    mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
             # Encode frame to JPEG format
             _, buffer = cv2.imencode('.jpg', frame)
             frame_bytes = buffer.tobytes()
